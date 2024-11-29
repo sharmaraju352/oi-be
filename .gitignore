@@ -258,3 +258,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+
+oi.db
+oi.db-journal
+
+uploads

@@ -2,7 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -10,8 +10,20 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
-  password String
+model air_quality {
+  id           Int      @id @default(autoincrement()) 
+  datetime     DateTime 
+  co_gt        Float    
+  pt08_s1_co   Int      
+  nmhc_gt      Int      
+  c6h6_gt      Float    
+  pt08_s2_nmhc Int      
+  nox_gt       Int      
+  pt08_s3_nox  Int      
+  no2_gt       Int      
+  pt08_s4_no2  Int      
+  pt08_s5_o3   Int      
+  t            Float    
+  rh           Float    
+  ah           Float    
 }
