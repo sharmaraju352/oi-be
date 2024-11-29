@@ -16,7 +16,7 @@ export class AirQualityRoute implements Routes {
 
   private initializeRoutes() {
     this.router.post(`${this.path}/ingest`, upload.single('file'), this.airQualityController.ingestData);
-    this.router.get(`${this.path}/parameter`, this.airQualityController.getDataByParameter);
+    this.router.get(`${this.path}/parameter/:parameter`, this.airQualityController.getDataByParameter);
     this.router.get(`${this.path}/date-range`, this.airQualityController.getDataByDateRange);
   }
 }

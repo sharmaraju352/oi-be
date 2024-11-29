@@ -26,7 +26,7 @@ export class AirQualityController {
 
   public getDataByParameter = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { parameter } = req.query;
+      const { parameter } = req.params;
       const data = await this.airQualityService.getDataByParameter(parameter as string);
 
       res.status(200).json({ data, message: 'Data fetched successfully' });
