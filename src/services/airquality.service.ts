@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import csvParser from 'csv-parser';
 import { Service } from 'typedi';
+import { AirQuality } from '@/interfaces/airquality.interface';
 
 @Service()
 export class AirQualityService {
@@ -44,12 +45,34 @@ export class AirQualityService {
     });
   }
 
-  parseDateTime = (date, time) => {
+  public async getDataByParameter(parameter: string): Promise<Partial<AirQuality>[]> {
+    const data = await this.prisma.air_quality.findMany({
+      select: {
+        datetime: true,
+        [parameter]: true,
+      },
+    });
+    return data;
+  }
+
+  public async getDataByDateRange(startDate: Date, endDate: Date): Promise<AirQuality[]> {
+    const data = await this.prisma.air_quality.findMany({
+      where: {
+        datetime: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+    return data;
+  }
+
+  private parseDateTime = (date, time) => {
     const [day, month, year] = date.split('/');
     const formattedDate = `${year}-${month}-${day}`;
     const formattedTime = time.replace(/\./g, ':');
     return new Date(`${formattedDate}T${formattedTime}`);
   };
 
-  parseFloatWithLocale = value => parseFloat(value.replace(',', '.'));
+  private parseFloatWithLocale = value => parseFloat(value.replace(',', '.'));
 }
