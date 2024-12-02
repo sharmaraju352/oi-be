@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import csvParser from 'csv-parser';
 import { Service } from 'typedi';
+import { AirQuality } from '@/interfaces/airquality.interface';
 
 @Service()
 export class AirQualityService {
@@ -48,7 +49,7 @@ export class AirQualityService {
     });
   }
 
-  public async getAirQualityData(startDate: Date, endDate: Date, parameters: string[], interval: string): Promise<any[]> {
+  public async getAirQualityData(startDate: Date, endDate: Date, parameters: string[], interval: string): Promise<AirQuality[]> {
     const allowedParameters = [
       'co_gt',
       'pt08_s1_co',
@@ -65,35 +66,52 @@ export class AirQualityService {
       'ah',
     ];
 
-    // Sanitize and validate the parameters
     parameters = parameters.filter(param => allowedParameters.includes(param));
 
     if (parameters.length === 0) {
       throw new Error('No valid parameters provided');
     }
 
-    // Build the select clauses
-    const selectClauses = ['date', 'time', ...parameters];
-
-    // Adjust startDate and endDate to include the full day
     const adjustedStartDate = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()));
     const adjustedEndDate = new Date(Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1));
 
-    console.log({ startDate, endDate, adjustedStartDate, adjustedEndDate });
+    let groupByClause = 'date';
+    let selectDateTimeGroup = "strftime('%Y-%m-%d', date(date / 1000, 'unixepoch')) as datetime_group";
 
-    // Fetch data from the database
-    const data = await this.prisma.air_quality.findMany({
-      where: {
-        date: {
-          gte: adjustedStartDate,
-          lt: adjustedEndDate,
-        },
-      },
-      select: selectClauses.reduce((acc, curr) => ({ ...acc, [curr]: true }), {}),
-      orderBy: [{ date: 'asc' }, { time: 'asc' }],
-    });
+    if (interval === 'hourly') {
+      groupByClause = "date, strftime('%H', time)";
+      selectDateTimeGroup = "strftime('%Y-%m-%d %H:00:00', datetime(date / 1000, 'unixepoch'), time) as datetime_group";
+    } else if (interval === 'daily') {
+      groupByClause = 'date';
+      selectDateTimeGroup = "strftime('%Y-%m-%d 00:00:00', date(date / 1000, 'unixepoch')) as datetime_group";
+    } else {
+      groupByClause = "date, strftime('%H', time)";
+      selectDateTimeGroup = "strftime('%Y-%m-%d %H:00:00', datetime(date / 1000, 'unixepoch'), time) as datetime_group";
+    }
 
-    return data;
+    const avgClauses = parameters.map(param => `AVG(${param}) as ${param}`).join(', ');
+
+    const query = `
+      SELECT
+        ${selectDateTimeGroup},
+        ${avgClauses}
+      FROM
+        air_quality
+      WHERE
+        date >= ? AND date < ?
+      GROUP BY
+        ${groupByClause}
+      ORDER BY
+        datetime_group ASC
+    `;
+
+    let data = await this.prisma.$queryRawUnsafe(query, adjustedStartDate.getTime(), adjustedEndDate.getTime());
+    data = (data as { datetime_group: string; [key: string]: string }[]).map(d => ({
+      ...d,
+      date: d.datetime_group.split(' ')[0],
+      time: d.datetime_group.split(' ')[1],
+    }));
+    return data as AirQuality[];
   }
 
   public async getAirQualityDataTable(offset: number, limit: number): Promise<{ data: any[]; total: number }> {
