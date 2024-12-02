@@ -12,6 +12,15 @@ export class AirQualityController {
         res.status(400).json({ message: 'No file uploaded' });
         return;
       }
+
+      const originalName = req.file.originalname;
+      const fileExtension = originalName.substring(originalName.lastIndexOf('.')).toLowerCase();
+      if (!['.csv'].includes(fileExtension)) {
+        res.status(400).json({ message: 'Invalid file type. Only CSV files are allowed.' });
+        fs.unlinkSync(req.file.path);
+        return;
+      }
+
       const filePath = req.file.path;
       await this.airQualityService.ingestData(filePath);
 
@@ -19,6 +28,18 @@ export class AirQualityController {
       fs.unlinkSync(filePath);
 
       res.status(200).json({ message: 'Data ingested successfully' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getAirQualityDataTable = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { offset = 0, limit = 50 } = req.query;
+
+      const result = await this.airQualityService.getAirQualityDataTable(Number(offset), Number(limit));
+
+      res.status(200).json({ data: result.data, total: result.total, message: 'Data fetched successfully' });
     } catch (error) {
       next(error);
     }

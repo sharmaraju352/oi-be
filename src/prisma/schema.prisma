@@ -12,7 +12,8 @@ generator client {
 
 model air_quality {
   id           Int      @id @default(autoincrement()) 
-  datetime     DateTime 
+  date         DateTime
+  time         String
   co_gt        Float    
   pt08_s1_co   Int      
   nmhc_gt      Int      

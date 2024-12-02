@@ -2,13 +2,15 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import csvParser from 'csv-parser';
 import { Service } from 'typedi';
-import { AirQuality } from '@/interfaces/airquality.interface';
 
 @Service()
 export class AirQualityService {
   private prisma = new PrismaClient();
 
   public async ingestData(filePath: string): Promise<void> {
+    // Clear the air_quality table
+    await this.prisma.air_quality.deleteMany({});
+
     const records = [];
     return new Promise((resolve, reject) => {
       fs.createReadStream(filePath)
@@ -16,7 +18,8 @@ export class AirQualityService {
         .on('data', row => {
           if (row.Date && row.Time) {
             const record = {
-              datetime: this.parseDateTime(row.Date, row.Time),
+              date: this.parseDate(row.Date),
+              time: this.parseTime(row.Time),
               co_gt: this.parseFloatWithLocale(row['CO(GT)']),
               pt08_s1_co: parseInt(row['PT08.S1(CO)'], 10),
               nmhc_gt: parseInt(row['NMHC(GT)'], 10),
@@ -45,17 +48,7 @@ export class AirQualityService {
     });
   }
 
-  public async getAirQualityData(startDate: Date, endDate: Date, parameters: string[], interval: string): Promise<AirQuality[]> {
-    let groupByFormat: string;
-
-    if (interval === 'hourly') {
-      groupByFormat = '%Y-%m-%d %H:00:00';
-    } else if (interval === 'daily') {
-      groupByFormat = '%Y-%m-%d 00:00:00';
-    } else {
-      groupByFormat = '%Y-%m-%d %H:00:00';
-    }
-
+  public async getAirQualityData(startDate: Date, endDate: Date, parameters: string[], interval: string): Promise<any[]> {
     const allowedParameters = [
       'co_gt',
       'pt08_s1_co',
@@ -79,36 +72,38 @@ export class AirQualityService {
       throw new Error('No valid parameters provided');
     }
 
-    const avgClauses = parameters.map(param => `AVG(${param}) as ${param}`).join(', ');
+    // Build the select clauses
+    const selectClauses = ['date', 'time', ...parameters];
 
-    const query = `
-      SELECT 
-        strftime('${groupByFormat}', datetime(datetime / 1000, 'unixepoch')) as datetime_group,
-        ${avgClauses}
-      FROM 
-        air_quality
-      WHERE 
-        datetime BETWEEN ? AND ?
-      GROUP BY 
-        datetime_group
-      ORDER BY 
-        datetime_group ASC
-    `;
+    // Adjust startDate and endDate to include the full day
+    const adjustedStartDate = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()));
+    const adjustedEndDate = new Date(Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1));
 
-    const startTimestamp = startDate.getTime();
-    const endTimestamp = endDate.getTime();
+    console.log({ startDate, endDate, adjustedStartDate, adjustedEndDate });
 
-    const data = await this.prisma.$queryRawUnsafe(query, startTimestamp, endTimestamp);
+    // Fetch data from the database
+    const data = await this.prisma.air_quality.findMany({
+      where: {
+        date: {
+          gte: adjustedStartDate,
+          lt: adjustedEndDate,
+        },
+      },
+      select: selectClauses.reduce((acc, curr) => ({ ...acc, [curr]: true }), {}),
+      orderBy: [{ date: 'asc' }, { time: 'asc' }],
+    });
 
-    return data as AirQuality[];
+    return data;
   }
 
-  private parseDateTime = (date, time) => {
-    const [day, month, year] = date.split('/');
-    const formattedDate = `${year}-${month}-${day}`;
-    const formattedTime = time.replace(/\./g, ':');
-    return new Date(`${formattedDate}T${formattedTime}`);
+  private parseDate = (dateStr: string): Date => {
+    const [day, month, year] = dateStr.split('/');
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   };
 
-  private parseFloatWithLocale = value => parseFloat(value.replace(',', '.'));
+  private parseTime = (timeStr: string): string => {
+    return timeStr.replace(/\./g, ':');
+  };
+
+  private parseFloatWithLocale = (value: string): number => parseFloat(value.replace(',', '.'));
 }

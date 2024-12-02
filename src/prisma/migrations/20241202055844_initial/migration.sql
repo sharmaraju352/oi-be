@@ -1,7 +1,8 @@
 -- CreateTable
 CREATE TABLE "air_quality" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "datetime" DATETIME NOT NULL,
+    "date" DATETIME NOT NULL,
+    "time" TEXT NOT NULL,
     "co_gt" REAL NOT NULL,
     "pt08_s1_co" INTEGER NOT NULL,
     "nmhc_gt" INTEGER NOT NULL,
