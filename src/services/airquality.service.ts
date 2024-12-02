@@ -96,6 +96,18 @@ export class AirQualityService {
     return data;
   }
 
+  public async getAirQualityDataTable(offset: number, limit: number): Promise<{ data: any[]; total: number }> {
+    let [data, total] = await Promise.all([
+      this.prisma.air_quality.findMany({
+        skip: offset,
+        take: limit,
+        orderBy: [{ date: 'asc' }, { time: 'asc' }],
+      }),
+      this.prisma.air_quality.count(),
+    ]);
+    return { data, total };
+  }
+
   private parseDate = (dateStr: string): Date => {
     const [day, month, year] = dateStr.split('/');
     return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
