@@ -45,26 +45,62 @@ export class AirQualityService {
     });
   }
 
-  public async getDataByParameter(parameter: string): Promise<Partial<AirQuality>[]> {
-    const data = await this.prisma.air_quality.findMany({
-      select: {
-        datetime: true,
-        [parameter]: true,
-      },
-    });
-    return data;
-  }
+  public async getAirQualityData(startDate: Date, endDate: Date, parameters: string[], interval: string): Promise<AirQuality[]> {
+    let groupByFormat: string;
 
-  public async getDataByDateRange(startDate: Date, endDate: Date): Promise<AirQuality[]> {
-    const data = await this.prisma.air_quality.findMany({
-      where: {
-        datetime: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-    });
-    return data;
+    if (interval === 'hourly') {
+      groupByFormat = '%Y-%m-%d %H:00:00';
+    } else if (interval === 'daily') {
+      groupByFormat = '%Y-%m-%d 00:00:00';
+    } else {
+      groupByFormat = '%Y-%m-%d %H:00:00';
+    }
+
+    const allowedParameters = [
+      'co_gt',
+      'pt08_s1_co',
+      'nmhc_gt',
+      'c6h6_gt',
+      'pt08_s2_nmhc',
+      'nox_gt',
+      'pt08_s3_nox',
+      'no2_gt',
+      'pt08_s4_no2',
+      'pt08_s5_o3',
+      't',
+      'rh',
+      'ah',
+    ];
+
+    // Sanitize and validate the parameters
+    parameters = parameters.filter(param => allowedParameters.includes(param));
+
+    if (parameters.length === 0) {
+      throw new Error('No valid parameters provided');
+    }
+
+    const avgClauses = parameters.map(param => `AVG(${param}) as ${param}`).join(', ');
+
+    const query = `
+      SELECT 
+        strftime('${groupByFormat}', datetime(datetime / 1000, 'unixepoch')) as datetime_group,
+        ${avgClauses}
+      FROM 
+        air_quality
+      WHERE 
+        datetime BETWEEN ? AND ?
+      GROUP BY 
+        datetime_group
+      ORDER BY 
+        datetime_group ASC
+    `;
+
+    const startTimestamp = startDate.getTime();
+    const endTimestamp = endDate.getTime();
+
+    const data = await this.prisma.$queryRawUnsafe(query, startTimestamp, endTimestamp);
+
+    return data as AirQuality[];
   }
 
   private parseDateTime = (date, time) => {

@@ -1,7 +1,7 @@
 {
-  "name": "typescript-express-starter",
-  "version": "0.0.0",
-  "description": "TypeScript + Prisma + MySQL + Express API Server",
+  "name": "air-quality-backend",
+  "version": "0.0.1",
+  "description": "Air quality API",
   "author": "",
   "license": "ISC",
   "scripts": {

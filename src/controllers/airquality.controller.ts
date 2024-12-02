@@ -24,21 +24,18 @@ export class AirQualityController {
     }
   };
 
-  public getDataByParameter = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  public getAirQualityData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { parameter } = req.params;
-      const data = await this.airQualityService.getDataByParameter(parameter as string);
+      const { startDate, endDate, parameters, interval } = req.query;
 
-      res.status(200).json({ data, message: 'Data fetched successfully' });
-    } catch (error) {
-      next(error);
-    }
-  };
+      const parameterList = typeof parameters === 'string' ? parameters.split(',') : [];
 
-  public getDataByDateRange = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { startDate, endDate } = req.query;
-      const data = await this.airQualityService.getDataByDateRange(new Date(startDate as string), new Date(endDate as string));
+      const data = await this.airQualityService.getAirQualityData(
+        new Date(startDate as string),
+        new Date(endDate as string),
+        parameterList as string[],
+        interval as string,
+      );
 
       res.status(200).json({ data, message: 'Data fetched successfully' });
     } catch (error) {
