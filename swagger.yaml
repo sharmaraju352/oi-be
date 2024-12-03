@@ -1,123 +1,152 @@
-tags:
-- name: users
-  description: users API
-
+openapi: 3.0.1
+info:
+  title: Air Quality API
+  description: API to manage air quality data.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+    description: Local server
 paths:
-# [GET] users
-  /users:
-    get:
-      tags:
-      - users
-      summary: Find All Users
-      responses:
-        200:
-          description: 'OK'
-        500:
-          description: 'Server Error'
-
-# [POST] users
+  /air-quality/ingest:
     post:
-      tags:
-      - users
-      summary: Add User
-      parameters:
-      - name: body
-        in: body
-        description: user Data
+      summary: Upload and ingest air quality data
+      description: Ingest air quality data by uploading a CSV file.
+      requestBody:
         required: true
-        schema:
-          $ref: '#/definitions/users'
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The CSV file to upload (e.g., AirQualityUCI.csv).
       responses:
-        201:
-          description: 'Created'
-        400:
-          description: 'Bad Request'
-        409:
-          description: 'Conflict'
-        500:
-          description: 'Server Error'
-
-# [GET] users/id
-  /users/{id}:
+        '200':
+          description: File uploaded and data ingested successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Data ingested successfully
+        '400':
+          description: Invalid file type or no file uploaded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid file type. Only CSV files are allowed.
+  /air-quality/data:
     get:
-      tags:
-      - users
-      summary: Find User By Id
+      summary: Get paginated air quality data
+      description: Fetch air quality data in a paginated manner.
       parameters:
-      - name: id
-        in: path
-        description: User Id
-        required: true
-        type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Offset for pagination.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Limit for pagination.
       responses:
-        200:
-          description: 'OK'
-        409:
-          description: 'Conflict'
-        500:
-          description: 'Server Error'
-
-# [PUT] users/id
-    put:
-      tags:
-      - users
-      summary: Update User By Id
+        '200':
+          description: Air quality data fetched successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  message:
+                    type: string
+                    example: Data fetched successfully
+  /air-quality:
+    get:
+      summary: Fetch aggregated air quality data
+      description: Fetch air quality data aggregated by the specified interval.
       parameters:
-      - name: id
-        in: path
-        description: user Id
-        required: true
-        type: integer
-      - name: body
-        in: body
-        description: user Data
-        required: true
-        schema:
-          $ref: '#/definitions/users'
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date for the data range (e.g., 2005-03-01).
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End date for the data range (e.g., 2005-03-05).
+        - name: parameters
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of parameters to include (e.g., co_gt,nox_gt).
+        - name: interval
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - hourly
+              - daily
+            default: daily
+          description: Interval for aggregation (hourly or daily).
       responses:
-        200:
-          description: 'OK'
-        400:
-          description: 'Bad Request'
-        409:
-          description: 'Conflict'
-        500:
-          description: 'Server Error'
-
-# [DELETE] users/id
-    delete:
-      tags:
-      - users
-      summary: Delete User By Id
-      parameters:
-      - name: id
-        in: path
-        description: user Id
-        required: true
-        type: integer
-      responses:
-        200:
-          description: 'OK'
-        409:
-          description: 'Conflict'
-        500:
-          description: 'Server Error'
-
-# definitions
-definitions:
-  users:
-    type: object
-    required:
-        - email
-        - password
-    properties:
-      email:
-        type: string
-        description: user Email
-      password:
-        type: string
-        description: user Password
-
-schemes:
- - https
- - http
+        '200':
+          description: Aggregated air quality data fetched successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                        time:
+                          type: string
+                          format: time
+                        co_gt:
+                          type: number
+                        nox_gt:
+                          type: number
+                  message:
+                    type: string
+                    example: Data fetched successfully
+        '400':
+          description: Missing or invalid query parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: No valid parameters provided.
