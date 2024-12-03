@@ -4,6 +4,9 @@
 
 The Air Quality API is designed to ingest and query air quality data for analysis and visualization. This project provides endpoints to upload air quality datasets in CSV format and query the ingested data based on date range, parameters, and interval.
 
+## Demo
+![Project in Action](./assets/output.gif)
+
 ---
 
 ## Prerequisites
