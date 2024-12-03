@@ -39,10 +39,9 @@ export class AirQualityService {
           }
         })
         .on('end', async () => {
-          // SQLite does not support batch insertion
-          for (const record of records) {
-            await this.prisma.air_quality.create({ data: record });
-          }
+          await this.prisma.air_quality.createMany({
+            data: records,
+          });
           resolve();
         })
         .on('error', error => reject(error));
